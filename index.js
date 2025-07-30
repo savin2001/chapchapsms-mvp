@@ -1,15 +1,17 @@
 const express = require('express');
-const { resolve } = require('path');
+const bodyParser = require('body-parser');
+const smsRoutes = require('./routes/sms');
 
 const app = express();
-const port = 3010;
+const PORT = process.env.PORT || 3000;
 
-app.use(express.static('static'));
+app.use(bodyParser.json());
+app.use('/send-sms', smsRoutes);
 
 app.get('/', (req, res) => {
-  res.sendFile(resolve(__dirname, 'pages/index.html'));
+  res.send('Welcome to ChapChapSMS API');
 });
 
-app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
