@@ -1,0 +1,34 @@
+{
+  "messages": [
+    {
+      "to": "+254700000001",
+      "from": "ChapChapSMS",
+      "message": "Hello single",
+      "messageId": "eb2ec910-3d8a-47f4-82e1-89d80dc54219",
+      "status": "sent",
+      "deliveryStatus": "queued",
+      "channel": "api",
+      "timestamp": "2025-07-30T14:14:54.037Z"
+    },
+    {
+      "to": "+254700000002",
+      "from": "ChapChapSMS",
+      "message": "Hello user 1",
+      "messageId": "8462eec5-7c99-4492-abcf-2f86afb0ebe5",
+      "status": "sent",
+      "deliveryStatus": "queued",
+      "channel": "api",
+      "timestamp": "2025-07-30T14:15:09.188Z"
+    },
+    {
+      "to": "+254700000003",
+      "from": "ChapChapSMS",
+      "message": "Hello user 2",
+      "messageId": "f55e40c6-25ad-4bc1-90bd-94684573a676",
+      "status": "sent",
+      "deliveryStatus": "queued",
+      "channel": "api",
+      "timestamp": "2025-07-30T14:15:09.188Z"
+    }
+  ]
+}
