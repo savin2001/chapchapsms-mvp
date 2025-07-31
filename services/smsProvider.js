@@ -6,6 +6,9 @@ const AT = africastalking({
   username: process.env.AT_USERNAME,
 });
 
+console.log('[ENV] Username:', process.env.AT_USERNAME);
+console.log('[ENV] API Key starts with:', process.env.AT_API_KEY.slice(0, 5));
+
 const sms = AT.SMS;
 
 async function sendViaAT({ to, message, from = 'AFRICASTKNG' }) {
