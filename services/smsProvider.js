@@ -7,11 +7,11 @@ const AT = africastalking({
 });
 
 console.log('[ENV] Username:', process.env.AT_USERNAME);
-console.log('[ENV] API Key starts with:', process.env.AT_API_KEY);
+console.log('[ENV] API Key starts with:', process.env.AT_API_KEY.slice(0, 5));
 
 const sms = AT.SMS;
 
-async function sendViaAT({ to, message, from = 'AFRICASTKNG' }) {
+async function sendViaAT({ to, message, from = '72824' }) {
   console.log('[AT:sendViaAT] Preparing to send SMS...');
   console.log(`[AT:sendViaAT] To: ${to}, From: ${from}, Message: "${message}"`);
 

@@ -11,7 +11,7 @@ router.post('/', async (req, res) => {
 
   for (const msg of messages) {
     const { to, message } = msg;
-    const from = 'AFRICASTKNG'; // Always enforce this for sandbox
+    const from = '72824'; // Always enforce this for sandbox
     console.log('[POST:/api/messages] Processing message:', { to, from, message });
 
     if (!to || !message) {
