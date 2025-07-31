@@ -17,7 +17,7 @@ async function saveMessage(msg) {
 
   const standardized = {
     to: msg.to || '',
-    from: msg.from || 'ChapChapSMS',
+    from: msg.from || 'AFRICASTKNG',
     message: msg.message || '',
     messageId: msg.messageId || '', // passed in
     status: msg.status || 'sent',
