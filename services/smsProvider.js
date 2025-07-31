@@ -10,7 +10,7 @@ const AT = africastalking({
 
 const sms = AT.SMS;
 
-async function sendViaAT({ to, message, from = '72824' }) {
+async function sendViaAT({ to, message, from = 'AFRICASTKNG' }) {
   try {
     const result = await sms.send({ to, message, from });
     console.log('SMS sent:', result);
