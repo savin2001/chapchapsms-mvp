@@ -20,10 +20,14 @@ async function saveMessage(msg) {
     from: msg.from || '72824',
     message: msg.message || '',
     messageId: msg.messageId || '',
-    status: msg.status || 'sent',
-    deliveryStatus: msg.deliveryStatus || 'queued',
+    status: msg.status || 'failed',                        // e.g., 'sent', 'failed'
+    deliveryStatus: msg.deliveryStatus || 'unknown',      // e.g., 'queued', 'rejected'
+    provider: msg.provider || "Africa’s Talking",
     channel: msg.channel || 'api',
-    timestamp: msg.timestamp || new Date().toISOString()
+    timestamp: msg.timestamp || new Date().toISOString(),
+    cost: msg.cost || null,                                // Optional: e.g., 'KES 0.8000'
+    statusCode: msg.statusCode || null,                    // Optional: e.g., 101 for success, or 401 error code
+    rawResponse: msg.rawResponse || null                   // Optional: original AT response (for debugging)
   };
 
   db.data.messages.push(standardized);
