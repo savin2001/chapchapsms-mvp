@@ -7,7 +7,7 @@ const AT = africastalking({
 });
 
 console.log('[ENV] Username:', process.env.AT_USERNAME);
-console.log('[ENV] API Key starts with:', process.env.AT_API_KEY.slice(0, 5));
+console.log('[ENV] API Key starts with:', process.env.AT_API_KEY);
 
 const sms = AT.SMS;
 
