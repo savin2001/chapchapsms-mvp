@@ -29,6 +29,16 @@
       "deliveryStatus": "queued",
       "channel": "api",
       "timestamp": "2025-07-30T14:15:09.188Z"
+    },
+    {
+      "to": "+254700000001",
+      "from": "ChapChapSMS",
+      "message": "Hello from ChapChapSMS via Africa’s Talking!",
+      "messageId": "",
+      "status": "failed",
+      "deliveryStatus": "queued",
+      "channel": "api",
+      "timestamp": "2025-07-31T09:23:38.523Z"
     }
   ]
 }

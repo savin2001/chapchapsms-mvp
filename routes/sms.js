@@ -1,41 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const { saveMessage, getAllMessages } = require('../db/storage');
-const { v4: uuidv4 } = require('uuid'); // Add this
+const { v4: uuidv4 } = require('uuid'); 
+const { sendViaAT } = require('../services/smsProvider');
+
 
 // POST /api/messages (single or bulk)
 router.post('/', async (req, res) => {
   const messages = Array.isArray(req.body) ? req.body : [req.body];
 
-  const invalid = messages.find(
-    ({ to, from, message }) => !to || !from || !message
-  );
-  if (invalid) {
-    return res.status(400).json({ error: 'Missing "to", "from", or "message" in at least one message' });
-  }
+  const results = [];
 
-  try {
-    const enriched = messages.map((msg) => ({
-      to: msg.to,
-      from: msg.from,
-      message: msg.message,
-      messageId: uuidv4(),
-      status: 'sent',
-      deliveryStatus: 'queued',
-      channel: 'api',
-      timestamp: new Date().toISOString()
-    }));
-
-    for (const m of enriched) {
-      await saveMessage(m);
+  for (const msg of messages) {
+    const { to, from, message } = msg;
+    if (!to || !from || !message) {
+      results.push({ to, error: 'Missing "to", "from", or "message"' });
+      continue;
     }
 
-    res.status(201).json({ status: 'Messages saved', count: enriched.length });
-  } catch (error) {
-    console.error('Error saving messages:', error);
-    res.status(500).json({ error: 'Failed to save messages' });
+    const sendResult = await sendViaAT({ to, from, message });
+    const saved = {
+      to,
+      from,
+      message,
+      status: sendResult.success ? 'sent' : 'failed',
+      provider: 'Africa’s Talking',
+      channel: 'api',
+      timestamp: new Date().toISOString(),
+    };
+    await saveMessage(saved);
+    results.push(saved);
   }
+
+  res.status(207).json(results); // 207: Multi-Status
 });
+
 
 // GET /api/messages
 router.get('/', async (req, res) => {
