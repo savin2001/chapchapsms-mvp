@@ -19,7 +19,7 @@ async function saveMessage(msg) {
     to: msg.to || '',
     from: msg.from || 'AFRICASTKNG',
     message: msg.message || '',
-    messageId: msg.messageId || '', // passed in
+    messageId: msg.messageId || '',
     status: msg.status || 'sent',
     deliveryStatus: msg.deliveryStatus || 'queued',
     channel: msg.channel || 'api',
@@ -27,6 +27,7 @@ async function saveMessage(msg) {
   };
 
   db.data.messages.push(standardized);
+  console.log('[DB] Message saved:', standardized);
   await db.write();
 }
 

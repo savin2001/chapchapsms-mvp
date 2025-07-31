@@ -1,9 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { saveMessage, getAllMessages } = require('../db/storage');
-const { v4: uuidv4 } = require('uuid'); 
 const { sendViaAT } = require('../services/smsProvider');
-
 
 router.post('/', async (req, res) => {
   console.log('[POST:/api/messages] Incoming request body:', req.body);
@@ -12,12 +10,13 @@ router.post('/', async (req, res) => {
   const results = [];
 
   for (const msg of messages) {
-    const { to, from, message } = msg;
-    console.log('[POST:/api/messages] Processing message:', msg);
+    const { to, message } = msg;
+    const from = 'AFRICASTKNG'; // Always enforce this for sandbox
+    console.log('[POST:/api/messages] Processing message:', { to, from, message });
 
-    if (!to || !from || !message) {
-      console.warn('[POST:/api/messages] Missing fields:', msg);
-      results.push({ to, error: 'Missing "to", "from", or "message"' });
+    if (!to || !message) {
+      console.warn('[POST:/api/messages] Missing "to" or "message" fields:', msg);
+      results.push({ to, error: 'Missing "to" or "message"' });
       continue;
     }
 
@@ -28,18 +27,19 @@ router.post('/', async (req, res) => {
       from,
       message,
       status: sendResult.success ? 'sent' : 'failed',
-      deliveryStatus: 'queued',
+      deliveryStatus: sendResult.success ? 'queued' : 'rejected',
       provider: 'Africa’s Talking',
       channel: 'api',
       timestamp: new Date().toISOString(),
+      messageId: sendResult.response?.SMSMessageData?.Recipients?.[0]?.messageId || '',
     };
 
-    console.log('[POST:/api/messages] Result:', sendResult);
+    console.log('[POST:/api/messages] Result:', JSON.stringify(sendResult, null, 2));
     await saveMessage(saved);
     results.push(saved);
   }
 
-  console.log('[POST:/api/messages] Final response payload:', results);
+  console.log('[POST:/api/messages] Final response payload:', JSON.stringify(results, null, 2));
   res.status(207).json(results);
 });
 
@@ -54,6 +54,5 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
-
 
 module.exports = router;
