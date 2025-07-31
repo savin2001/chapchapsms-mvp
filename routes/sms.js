@@ -1,3 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const { saveMessage, getAllMessages } = require('../db/storage');
+const { v4: uuidv4 } = require('uuid'); 
+const { sendViaAT } = require('../services/smsProvider');
+
+
 router.post('/', async (req, res) => {
   console.log('[POST:/api/messages] Incoming request body:', req.body);
 
@@ -47,3 +54,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
+
+
+module.exports = router;
