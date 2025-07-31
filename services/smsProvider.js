@@ -3,8 +3,8 @@ const africastalking = require('africastalking');
 
 // ✅ Replace with your credentials
 const AT = africastalking({
-  apiKey: 'atsk_8a71ec864ce8b61edad3bd5fd6f4fdf0909a7571d1571e485a56b4fb6ef8be78d5f529ab',
-  username: 'sandbox', // or your live username
+    apiKey: process.env.AT_API_KEY,
+    username: process.env.AT_USERNAME,
 });
 
 const sms = AT.SMS;
