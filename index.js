@@ -1,5 +1,7 @@
 const express = require('express');
 const smsRoutes = require('./routes/sms');
+require('dotenv').config();
+
 
 const app = express();
 app.use(express.json());

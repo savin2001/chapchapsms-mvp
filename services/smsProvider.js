@@ -1,5 +1,6 @@
 // services/smsProvider.js
 const africastalking = require('africastalking');
+require('dotenv').config();
 
 // ✅ Replace with your credentials
 const AT = africastalking({
@@ -9,7 +10,7 @@ const AT = africastalking({
 
 const sms = AT.SMS;
 
-async function sendViaAT({ to, message, from = 'AFRICASTKNG' }) {
+async function sendViaAT({ to, message, from = '72824' }) {
   try {
     const result = await sms.send({ to, message, from });
     console.log('SMS sent:', result);
