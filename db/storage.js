@@ -2,49 +2,73 @@ const { Low } = require('lowdb');
 const { JSONFile } = require('lowdb/node');
 const path = require('path');
 
-const file = path.join(__dirname, 'messages.json');
-const adapter = new JSONFile(file);
-const db = new Low(adapter, { messages: [] });
+const messagesDB = new Low(new JSONFile(path.join(__dirname, 'messages.json')), { messages: [] });
+const bulkDB = new Low(new JSONFile(path.join(__dirname, 'bulkMessages.json')), { bulk: [] });
 
-async function initDB() {
+async function initDB(db) {
   await db.read();
-  db.data ||= { messages: [] };
+  db.data ||= db.data || {};
   await db.write();
 }
 
-async function saveMessage(msg) {
-  await initDB();
-
-  const standardized = {
-    to: msg.to || '',
+function createBaseMessage(msg, recipient, internalMessageId, rawResponse) {
+  const enriched = {
+    to: recipient.number || recipient,
     from: msg.from || '72824',
     message: msg.message || '',
-    messageId: msg.messageId || '',
-    internalMessageId: msg.internalMessageId || `CHAPCHAP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    status: msg.status || 'failed',
-    deliveryStatus: msg.deliveryStatus || 'unknown',
-    provider: msg.provider || 'Africa’s Talking',
-    channel: msg.channel || 'api',
-    timestamp: msg.timestamp || new Date().toISOString(),
-    cost: msg.cost || null,
-    statusCode: msg.statusCode || null,
-    rawResponse: msg.rawResponse || null,
+    messageId: recipient.messageId || '',
+    internalMessageId,
+    status: recipient.statusCode === 101 ? 'sent' : 'failed',
+    deliveryStatus: recipient.statusCode === 101 ? 'queued' : 'rejected',
+    provider: 'Africa’s Talking',
+    channel: 'api',
+    timestamp: new Date().toISOString(),
+    cost: recipient.cost || '0',
+    statusCode: recipient.statusCode || null,
+    rawResponse,
     campaignId: msg.campaignId || null,
     scheduleTime: msg.scheduleTime || null,
-    retryCount: msg.retryCount || 0,
-    lastTriedAt: msg.lastTriedAt || null,
+    retryCount: 0,
+    lastTriedAt: null,
     messageType: msg.messageType || 'transactional',
     metadata: msg.metadata || {},
   };
-
-  db.data.messages.push(standardized);
-  console.log('[DB] Message saved:', standardized);
-  await db.write();
+  return enriched;
 }
 
-async function getAllMessages() {
-  await db.read();
-  return db.data.messages || [];
+async function saveMessage(msg) {
+  await initDB(messagesDB);
+  messagesDB.data.messages.push(msg);
+  await messagesDB.write();
 }
 
-module.exports = { saveMessage, getAllMessages };
+async function saveBulkMessages(bulkPayload, rawResponse) {
+  await initDB(bulkDB);
+
+  const internalMessageId = `CHAP-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+  const results = [];
+
+  for (const recipient of rawResponse.recipients) {
+    const msg = createBaseMessage(bulkPayload, recipient, internalMessageId, rawResponse);
+    results.push(msg);
+    await saveMessage(msg); // Store in individual message log as well
+  }
+
+  const summary = {
+    internalMessageId,
+    totalCount: rawResponse.recipients.length,
+    successCount: rawResponse.recipients.filter(r => r.statusCode === 101).length,
+    failedCount: rawResponse.recipients.filter(r => r.statusCode !== 101).length,
+    messages: results
+  };
+
+  bulkDB.data.bulk.push(summary);
+  await bulkDB.write();
+
+  return summary;
+}
+
+module.exports = {
+  saveMessage,
+  saveBulkMessages
+};

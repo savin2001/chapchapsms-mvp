@@ -25,20 +25,15 @@ const statusDescriptions = {
 };
 
 async function sendViaAT({ to, message, from = '72824' }) {
-  console.log('[AT:sendViaAT] Preparing to send SMS...');
-  console.log(`[AT:sendViaAT] To: ${to}, From: ${from}, Message: "${message}"`);
-
   try {
     const result = await sms.send({ to, message, from });
-
-    console.log('[AT:sendViaAT] Raw SMS API response:', JSON.stringify(result, null, 2));
 
     const recipients = result.SMSMessageData?.Recipients || [];
     const enrichedRecipients = recipients.map((r) => ({
       number: r.number,
       statusCode: r.statusCode,
       status: r.status,
-      description: statusDescriptions[r.statusCode] || 'Unknown status',
+      description: statusDescriptions[r.statusCode] || 'Unknown',
       cost: r.cost,
       messageId: r.messageId,
     }));
@@ -51,9 +46,15 @@ async function sendViaAT({ to, message, from = '72824' }) {
       }
     };
   } catch (err) {
-    console.error('[AT:sendViaAT] Failed to send SMS via Africa’s Talking:', err.message);
     return { success: false, error: err.message };
   }
 }
 
-module.exports = { sendViaAT };
+async function sendBulkViaAT({ to, message, from }) {
+  return sendViaAT({ to, message, from });
+}
+
+module.exports = {
+  sendViaAT,
+  sendBulkViaAT
+};
