@@ -50,11 +50,6 @@ async function sendViaAT({ to, message, from = '72824' }) {
   }
 }
 
-async function sendBulkViaAT({ to, message, from }) {
-  return sendViaAT({ to, message, from });
-}
-
 module.exports = {
-  sendViaAT,
-  sendBulkViaAT
+  sendViaAT
 };

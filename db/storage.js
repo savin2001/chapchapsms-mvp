@@ -11,7 +11,7 @@ async function initDB(db) {
   await db.write();
 }
 
-function createBaseMessage(msg, recipient, internalMessageId, rawResponse) {
+function createBaseMessage(msg, recipient, internalMessageId) {
   return {
     to: recipient.number || recipient,
     from: msg.from || '72824',
@@ -20,18 +20,17 @@ function createBaseMessage(msg, recipient, internalMessageId, rawResponse) {
     internalMessageId,
     status: recipient.statusCode === 101 ? 'sent' : 'failed',
     deliveryStatus: recipient.statusCode === 101 ? 'queued' : 'rejected',
-    provider: 'Africa’s Talking',
+    provider: msg.provider || 'Africa’s Talking',
     channel: 'api',
     timestamp: new Date().toISOString(),
     cost: recipient.cost || '0',
     statusCode: recipient.statusCode || null,
-    rawResponse,
     campaignId: msg.campaignId || null,
     scheduleTime: msg.scheduleTime || null,
     retryCount: 0,
     lastTriedAt: null,
     messageType: msg.messageType || 'transactional',
-    metadata: msg.metadata || {},
+    metadata: msg.metadata || {}
   };
 }
 
@@ -53,9 +52,9 @@ async function saveBulkMessages(bulkPayload, rawResponse) {
   const results = [];
 
   for (const recipient of rawResponse.recipients) {
-    const msg = createBaseMessage(bulkPayload, recipient, internalMessageId, rawResponse);
+    const msg = createBaseMessage(bulkPayload, recipient, internalMessageId);
     results.push(msg);
-    await saveMessage(msg); // Save in individual log
+    await saveMessage({ ...msg, rawResponse: null }); // Save individually with no duplication
   }
 
   const summary = {
@@ -63,7 +62,12 @@ async function saveBulkMessages(bulkPayload, rawResponse) {
     totalCount: results.length,
     successCount: results.filter(r => r.status === 'sent').length,
     failedCount: results.filter(r => r.status === 'failed').length,
-    messages: results
+    messages: results,
+    campaignId: bulkPayload.campaignId,
+    scheduleTime: bulkPayload.scheduleTime,
+    messageType: bulkPayload.messageType,
+    metadata: bulkPayload.metadata,
+    rawResponse // Store once at top-level
   };
 
   bulkDB.data.bulk.push(summary);
