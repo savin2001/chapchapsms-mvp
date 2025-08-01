@@ -62,67 +62,62 @@ router.post('/', async (req, res) => {
 });
 
 router.post('/bulk', async (req, res) => {
-  console.log('[POST:/api/messages/bulk] Incoming bulk request...');
+  const {
+    to,
+    from = '72824',
+    message,
+    campaignId = null,
+    scheduleTime = null,
+    messageType = 'transactional',
+    metadata = {}
+  } = req.body;
 
-  const messages = req.body;
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ error: 'Request body must be a non-empty array of messages' });
-  }
-
-  const { campaignId, scheduledAt } = req.query;
-  const now = new Date().toISOString();
+  const recipientList = Array.isArray(to) ? to : [to];
+  const internalMessageId = `CHAP-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
   const results = [];
 
-  for (const msg of messages) {
-    const { to, message, from = '72824' } = msg;
+  const sendResult = await sendViaAT({ to: recipientList, from, message });
 
-    if (!to || !message) {
-      results.push({ to, error: 'Missing "to" or "message" field' });
-      continue;
-    }
-
-    const internalMessageId = `CHAP-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-    // Scheduling logic (for now we only support immediate or scheduled log without actual delay)
-    const isScheduled = scheduledAt && new Date(scheduledAt) > new Date();
-    const shouldSendNow = !isScheduled;
-
-    let sendResult = {};
-    if (shouldSendNow) {
-      sendResult = await sendViaAT({ to, from, message });
-    }
-
-    const rawRecipient = sendResult.response?.SMSMessageData?.Recipients?.[0] || {};
-
-    const saved = {
-      internalMessageId,
-      to,
+  const recipients = sendResult.response?.recipients || [];
+  for (const r of recipients) {
+    const statusOk = r.statusCode === 100 || r.statusCode === 101 || r.statusCode === 102;
+    const payload = {
+      to: r.number,
       from,
       message,
-      campaignId: campaignId || null,
-      scheduledAt: scheduledAt || null,
-      sentAt: shouldSendNow ? now : null,
-      status: shouldSendNow
-        ? (sendResult.success ? 'sent' : 'failed')
-        : 'scheduled',
-      deliveryStatus: shouldSendNow
-        ? (sendResult.success ? 'queued' : 'rejected')
-        : 'pending',
+      messageId: r.messageId !== 'None' ? r.messageId : '',
+      internalMessageId,
+      status: statusOk ? 'sent' : 'failed',
+      deliveryStatus: statusOk ? 'queued' : 'rejected',
       provider: 'Africa’s Talking',
       channel: 'api',
-      timestamp: now,
-      cost: rawRecipient.cost || null,
-      statusCode: rawRecipient.statusCode || null,
-      messageId: rawRecipient.messageId || '',
-      rawResponse: sendResult.response || null
+      timestamp: new Date().toISOString(),
+      cost: r.cost || null,
+      statusCode: r.statusCode || null,
+      rawResponse: sendResult.response,
+      campaignId,
+      scheduleTime,
+      retryCount: 0,
+      lastTriedAt: null,
+      messageType,
+      metadata
     };
-
-    await saveMessage(saved);
-    results.push(saved);
+    await saveMessage(payload);
+    results.push(payload);
   }
 
-  res.status(207).json(results);
+  const successCount = results.filter(r => r.status === 'sent').length;
+  const failedCount = results.length - successCount;
+
+  res.status(207).json({
+    internalMessageId,
+    totalCount: results.length,
+    successCount,
+    failedCount,
+    messages: results
+  });
 });
+
 
 
 router.get('/', async (req, res) => {
