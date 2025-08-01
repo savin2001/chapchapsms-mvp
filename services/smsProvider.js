@@ -1,4 +1,3 @@
-// services/smsProvider.js
 const africastalking = require('africastalking');
 require('dotenv').config();
 
@@ -44,14 +43,13 @@ async function sendViaAT({ to, message, from = '72824' }) {
       messageId: r.messageId,
     }));
 
-    const responseSummary = {
-      message: result.SMSMessageData?.Message || 'No summary',
-      recipients: enrichedRecipients,
+    return {
+      success: true,
+      response: {
+        message: result.SMSMessageData?.Message || 'No summary',
+        recipients: enrichedRecipients,
+      }
     };
-
-    console.log('[AT:sendViaAT] Parsed response summary:', JSON.stringify(responseSummary, null, 2));
-
-    return { success: true, response: responseSummary };
   } catch (err) {
     console.error('[AT:sendViaAT] Failed to send SMS via Africa’s Talking:', err.message);
     return { success: false, error: err.message };

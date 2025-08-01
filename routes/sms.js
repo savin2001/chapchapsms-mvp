@@ -10,9 +10,15 @@ router.post('/', async (req, res) => {
   const results = [];
 
   for (const msg of messages) {
-    const { to, message } = msg;
-    const from = '72824'; // Enforce for sandbox
-    console.log('[POST:/api/messages] Processing message:', { to, from, message });
+    const {
+      to,
+      message,
+      senderId = '72824',
+      campaignId = null,
+      scheduleTime = null,
+      messageType = 'transactional',
+      metadata = {},
+    } = msg;
 
     if (!to || !message) {
       console.warn('[POST:/api/messages] Missing "to" or "message" fields:', msg);
@@ -20,22 +26,30 @@ router.post('/', async (req, res) => {
       continue;
     }
 
-    const sendResult = await sendViaAT({ to, from, message });
+    const sendResult = await sendViaAT({ to, from: senderId, message });
 
-    const recipient = sendResult.response?.SMSMessageData?.Recipients?.[0] || {};
+    const recipientData = sendResult.response?.recipients?.[0] || {};
+
     const saved = {
       to,
-      from,
+      from: senderId,
       message,
+      messageId: recipientData.messageId || '',
+      internalMessageId: `CHAPCHAP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       status: sendResult.success ? 'sent' : 'failed',
       deliveryStatus: sendResult.success ? 'queued' : 'rejected',
       provider: 'Africa’s Talking',
       channel: 'api',
       timestamp: new Date().toISOString(),
-      messageId: recipient.messageId || '',
-      cost: recipient.cost || null,
-      statusCode: recipient.statusCode || null,
-      rawResponse: sendResult.response || null
+      cost: recipientData.cost || null,
+      statusCode: recipientData.statusCode || null,
+      rawResponse: sendResult.response || null,
+      campaignId,
+      scheduleTime,
+      retryCount: 0,
+      lastTriedAt: new Date().toISOString(),
+      messageType,
+      metadata
     };
 
     console.log('[POST:/api/messages] Result:', JSON.stringify(sendResult, null, 2));
