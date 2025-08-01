@@ -61,6 +61,70 @@ router.post('/', async (req, res) => {
   res.status(207).json(results);
 });
 
+router.post('/bulk', async (req, res) => {
+  console.log('[POST:/api/messages/bulk] Incoming bulk request...');
+
+  const messages = req.body;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'Request body must be a non-empty array of messages' });
+  }
+
+  const { campaignId, scheduledAt } = req.query;
+  const now = new Date().toISOString();
+  const results = [];
+
+  for (const msg of messages) {
+    const { to, message, from = '72824' } = msg;
+
+    if (!to || !message) {
+      results.push({ to, error: 'Missing "to" or "message" field' });
+      continue;
+    }
+
+    const internalMessageId = `CHAP-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    // Scheduling logic (for now we only support immediate or scheduled log without actual delay)
+    const isScheduled = scheduledAt && new Date(scheduledAt) > new Date();
+    const shouldSendNow = !isScheduled;
+
+    let sendResult = {};
+    if (shouldSendNow) {
+      sendResult = await sendViaAT({ to, from, message });
+    }
+
+    const rawRecipient = sendResult.response?.SMSMessageData?.Recipients?.[0] || {};
+
+    const saved = {
+      internalMessageId,
+      to,
+      from,
+      message,
+      campaignId: campaignId || null,
+      scheduledAt: scheduledAt || null,
+      sentAt: shouldSendNow ? now : null,
+      status: shouldSendNow
+        ? (sendResult.success ? 'sent' : 'failed')
+        : 'scheduled',
+      deliveryStatus: shouldSendNow
+        ? (sendResult.success ? 'queued' : 'rejected')
+        : 'pending',
+      provider: 'Africa’s Talking',
+      channel: 'api',
+      timestamp: now,
+      cost: rawRecipient.cost || null,
+      statusCode: rawRecipient.statusCode || null,
+      messageId: rawRecipient.messageId || '',
+      rawResponse: sendResult.response || null
+    };
+
+    await saveMessage(saved);
+    results.push(saved);
+  }
+
+  res.status(207).json(results);
+});
+
+
 router.get('/', async (req, res) => {
   console.log('[GET:/api/messages] Fetching all messages...');
   try {
