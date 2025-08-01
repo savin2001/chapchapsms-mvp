@@ -1,8 +1,7 @@
-const { saveMessage, getAllMessages } = require('../db/storage');
+const { saveMessage, saveBulkMessages, getAllMessages, getBulkMessages } = require('../db/storage');
 const { sendViaAT } = require('../services/smsProvider');
 
 exports.sendSingleMessage = async (req, res) => {
-  console.log('[POST:/api/messages] Incoming request body:', req.body);
   const messages = Array.isArray(req.body) ? req.body : [req.body];
   const results = [];
 
@@ -18,7 +17,6 @@ exports.sendSingleMessage = async (req, res) => {
     } = msg;
 
     if (!to || !message) {
-      console.warn('[POST:/api/messages] Missing "to" or "message" fields:', msg);
       results.push({ to, error: 'Missing "to" or "message"' });
       continue;
     }
@@ -67,59 +65,32 @@ exports.sendBulkMessages = async (req, res) => {
   } = req.body;
 
   const recipientList = Array.isArray(to) ? to : [to];
-  const internalMessageId = `CHAP-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-  const results = [];
-
   const sendResult = await sendViaAT({ to: recipientList, from, message });
-  const recipients = sendResult.response?.recipients || [];
 
-  for (const r of recipients) {
-    const statusOk = [100, 101, 102].includes(r.statusCode);
-    const payload = {
-      to: r.number,
-      from,
-      message,
-      messageId: r.messageId !== 'None' ? r.messageId : '',
-      internalMessageId,
-      status: statusOk ? 'sent' : 'failed',
-      deliveryStatus: statusOk ? 'queued' : 'rejected',
-      provider: 'Africa’s Talking',
-      channel: 'api',
-      timestamp: new Date().toISOString(),
-      cost: r.cost || null,
-      statusCode: r.statusCode || null,
-      rawResponse: sendResult.response,
-      campaignId,
-      scheduleTime,
-      retryCount: 0,
-      lastTriedAt: null,
-      messageType,
-      metadata
-    };
-    await saveMessage(payload);
-    results.push(payload);
-  }
+  const summary = await saveBulkMessages(
+    { from, message, campaignId, scheduleTime, messageType, metadata },
+    sendResult.response
+  );
 
-  const successCount = results.filter(r => r.status === 'sent').length;
-  const failedCount = results.length - successCount;
-
-  res.status(207).json({
-    internalMessageId,
-    totalCount: results.length,
-    successCount,
-    failedCount,
-    messages: results
-  });
+  res.status(207).json(summary);
 };
 
 exports.fetchAllMessages = async (req, res) => {
   try {
-    console.log('[GET:/api/messages] Fetching all messages...');
     const messages = await getAllMessages();
-    console.log(`[GET:/api/messages] Retrieved ${messages.length} messages`);
     res.json(messages);
   } catch (error) {
     console.error('[GET:/api/messages] Error:', error);
     res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+};
+
+exports.fetchBulkMessages = async (req, res) => {
+  try {
+    const bulk = await getBulkMessages();
+    res.json(bulk);
+  } catch (error) {
+    console.error('[GET:/api/messages/bulk] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch bulk messages' });
   }
 };

@@ -12,7 +12,7 @@ async function initDB(db) {
 }
 
 function createBaseMessage(msg, recipient, internalMessageId, rawResponse) {
-  const enriched = {
+  return {
     to: recipient.number || recipient,
     from: msg.from || '72824',
     message: msg.message || '',
@@ -33,13 +33,17 @@ function createBaseMessage(msg, recipient, internalMessageId, rawResponse) {
     messageType: msg.messageType || 'transactional',
     metadata: msg.metadata || {},
   };
-  return enriched;
 }
 
 async function saveMessage(msg) {
   await initDB(messagesDB);
   messagesDB.data.messages.push(msg);
   await messagesDB.write();
+}
+
+async function getAllMessages() {
+  await initDB(messagesDB);
+  return messagesDB.data.messages || [];
 }
 
 async function saveBulkMessages(bulkPayload, rawResponse) {
@@ -51,14 +55,14 @@ async function saveBulkMessages(bulkPayload, rawResponse) {
   for (const recipient of rawResponse.recipients) {
     const msg = createBaseMessage(bulkPayload, recipient, internalMessageId, rawResponse);
     results.push(msg);
-    await saveMessage(msg); // Store in individual message log as well
+    await saveMessage(msg); // Save in individual log
   }
 
   const summary = {
     internalMessageId,
-    totalCount: rawResponse.recipients.length,
-    successCount: rawResponse.recipients.filter(r => r.statusCode === 101).length,
-    failedCount: rawResponse.recipients.filter(r => r.statusCode !== 101).length,
+    totalCount: results.length,
+    successCount: results.filter(r => r.status === 'sent').length,
+    failedCount: results.filter(r => r.status === 'failed').length,
     messages: results
   };
 
@@ -68,7 +72,14 @@ async function saveBulkMessages(bulkPayload, rawResponse) {
   return summary;
 }
 
+async function getBulkMessages() {
+  await initDB(bulkDB);
+  return bulkDB.data.bulk || [];
+}
+
 module.exports = {
   saveMessage,
-  saveBulkMessages
+  saveBulkMessages,
+  getAllMessages,
+  getBulkMessages,
 };
