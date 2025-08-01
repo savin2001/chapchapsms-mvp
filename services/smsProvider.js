@@ -1,3 +1,4 @@
+// services/smsProvider.js
 const africastalking = require('africastalking');
 require('dotenv').config();
 
@@ -6,10 +7,23 @@ const AT = africastalking({
   username: process.env.AT_USERNAME,
 });
 
-console.log('[ENV] Username:', process.env.AT_USERNAME);
-console.log('[ENV] API Key starts with:', process.env.AT_API_KEY.slice(0, 5));
-
 const sms = AT.SMS;
+
+const statusDescriptions = {
+  100: 'Processed',
+  101: 'Sent',
+  102: 'Queued',
+  401: 'RiskHold',
+  402: 'InvalidSenderId',
+  403: 'InvalidPhoneNumber',
+  404: 'UnsupportedNumberType',
+  405: 'InsufficientBalance',
+  406: 'UserInBlacklist',
+  407: 'CouldNotRoute',
+  500: 'InternalServerError',
+  501: 'GatewayError',
+  502: 'RejectedByGateway',
+};
 
 async function sendViaAT({ to, message, from = '72824' }) {
   console.log('[AT:sendViaAT] Preparing to send SMS...');
@@ -17,10 +31,29 @@ async function sendViaAT({ to, message, from = '72824' }) {
 
   try {
     const result = await sms.send({ to, message, from });
-    console.log('[AT:sendViaAT] SMS API response:', JSON.stringify(result, null, 2));
-    return { success: true, response: result };
+
+    console.log('[AT:sendViaAT] Raw SMS API response:', JSON.stringify(result, null, 2));
+
+    const recipients = result.SMSMessageData?.Recipients || [];
+    const enrichedRecipients = recipients.map((r) => ({
+      number: r.number,
+      statusCode: r.statusCode,
+      status: r.status,
+      description: statusDescriptions[r.statusCode] || 'Unknown status',
+      cost: r.cost,
+      messageId: r.messageId,
+    }));
+
+    const responseSummary = {
+      message: result.SMSMessageData?.Message || 'No summary',
+      recipients: enrichedRecipients,
+    };
+
+    console.log('[AT:sendViaAT] Parsed response summary:', JSON.stringify(responseSummary, null, 2));
+
+    return { success: true, response: responseSummary };
   } catch (err) {
-    console.error('[AT:sendViaAT] Error sending SMS:', err.message);
+    console.error('[AT:sendViaAT] Failed to send SMS via Africa’s Talking:', err.message);
     return { success: false, error: err.message };
   }
 }

@@ -11,7 +11,7 @@ router.post('/', async (req, res) => {
 
   for (const msg of messages) {
     const { to, message } = msg;
-    const from = '72824'; // Always enforce this for sandbox
+    const from = '72824'; // Enforce for sandbox
     console.log('[POST:/api/messages] Processing message:', { to, from, message });
 
     if (!to || !message) {
@@ -22,6 +22,7 @@ router.post('/', async (req, res) => {
 
     const sendResult = await sendViaAT({ to, from, message });
 
+    const recipient = sendResult.response?.SMSMessageData?.Recipients?.[0] || {};
     const saved = {
       to,
       from,
@@ -31,7 +32,10 @@ router.post('/', async (req, res) => {
       provider: 'Africa’s Talking',
       channel: 'api',
       timestamp: new Date().toISOString(),
-      messageId: sendResult.response?.SMSMessageData?.Recipients?.[0]?.messageId || '',
+      messageId: recipient.messageId || '',
+      cost: recipient.cost || null,
+      statusCode: recipient.statusCode || null,
+      rawResponse: sendResult.response || null
     };
 
     console.log('[POST:/api/messages] Result:', JSON.stringify(sendResult, null, 2));
