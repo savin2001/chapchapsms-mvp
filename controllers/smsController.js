@@ -9,6 +9,7 @@ const { sendViaAT } = require('../services/smsProvider');
 // --- Helper: filtering, sorting, pagination ---
 function filterPaginateSort(data, query) {
   let {
+    tenantId,
     status,
     dateFrom,
     dateTo,
@@ -20,10 +21,12 @@ function filterPaginateSort(data, query) {
 
   let filtered = [...data];
 
+  if (tenantId) {
+    filtered = filtered.filter(m => m.tenantId === tenantId);
+  }
+
   if (status) {
-    filtered = filtered.filter(m =>
-      (m.status || '').toLowerCase() === status.toLowerCase()
-    );
+    filtered = filtered.filter(m => (m.status || '').toLowerCase() === status.toLowerCase());
   }
 
   if (dateFrom) {
@@ -34,6 +37,14 @@ function filterPaginateSort(data, query) {
   if (dateTo) {
     const to = new Date(dateTo);
     filtered = filtered.filter(m => new Date(m.timestamp) <= to);
+  }
+
+  if (query.messageType) {
+    filtered = filtered.filter(m => (m.messageType || '').toLowerCase() === query.messageType.toLowerCase());
+  }
+  
+  if (query.campaignId) {
+    filtered = filtered.filter(m => m.campaignId === query.campaignId);
   }
 
   if (sortBy) {
@@ -70,7 +81,8 @@ exports.sendSingleMessage = async (req, res) => {
       scheduleTime = null,
       messageType = 'transactional',
       metadata = {},
-      provider = 'africastalking'
+      provider = 'africastalking',
+      tenantId = 'default'
     } = msg;
 
     if (!to || !message) {
@@ -101,7 +113,10 @@ exports.sendSingleMessage = async (req, res) => {
       retryCount: 0,
       lastTriedAt: new Date().toISOString(),
       messageType,
-      metadata
+      metadata,
+      tenantId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     await saveMessage(saved);
@@ -121,7 +136,8 @@ exports.sendBulkMessages = async (req, res) => {
     scheduleTime = null,
     messageType = 'transactional',
     metadata = {},
-    provider = 'africastalking'
+    provider = 'africastalking',
+    tenantId = 'default'
   } = req.body;
 
   const recipientList = Array.isArray(to) ? to : [to];

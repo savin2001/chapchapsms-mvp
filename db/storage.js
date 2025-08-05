@@ -12,6 +12,8 @@ async function initDB(db) {
 }
 
 function createBaseMessage(msg, recipient, internalMessageId) {
+  const now = new Date().toISOString();
+
   return {
     to: recipient.number || recipient,
     from: msg.from || '72824',
@@ -22,7 +24,7 @@ function createBaseMessage(msg, recipient, internalMessageId) {
     deliveryStatus: recipient.statusCode === 101 ? 'queued' : 'rejected',
     provider: msg.provider || 'Africa’s Talking',
     channel: 'api',
-    timestamp: new Date().toISOString(),
+    timestamp: now,
     cost: recipient.cost || '0',
     statusCode: recipient.statusCode || null,
     campaignId: msg.campaignId || null,
@@ -30,9 +32,13 @@ function createBaseMessage(msg, recipient, internalMessageId) {
     retryCount: 0,
     lastTriedAt: null,
     messageType: msg.messageType || 'transactional',
-    metadata: msg.metadata || {}
+    metadata: msg.metadata || {},
+    tenantId: msg.tenantId || 'default',
+    createdAt: now,
+    updatedAt: now
   };
 }
+
 
 async function saveMessage(msg) {
   await initDB(messagesDB);
@@ -67,7 +73,10 @@ async function saveBulkMessages(bulkPayload, rawResponse) {
     scheduleTime: bulkPayload.scheduleTime,
     messageType: bulkPayload.messageType,
     metadata: bulkPayload.metadata,
-    rawResponse // Store once at top-level
+    rawResponse, // Store once at top-level
+    tenantId: bulkPayload.tenantId || 'default',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
   bulkDB.data.bulk.push(summary);
