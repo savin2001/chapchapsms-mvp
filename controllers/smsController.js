@@ -6,6 +6,57 @@ const {
 } = require('../db/storage');
 const { sendViaAT } = require('../services/smsProvider');
 
+// --- Helper: filtering, sorting, pagination ---
+function filterPaginateSort(data, query) {
+  let {
+    status,
+    dateFrom,
+    dateTo,
+    sortBy = 'timestamp',
+    order = 'desc',
+    page = 1,
+    limit = 10
+  } = query;
+
+  let filtered = [...data];
+
+  if (status) {
+    filtered = filtered.filter(m =>
+      (m.status || '').toLowerCase() === status.toLowerCase()
+    );
+  }
+
+  if (dateFrom) {
+    const from = new Date(dateFrom);
+    filtered = filtered.filter(m => new Date(m.timestamp) >= from);
+  }
+
+  if (dateTo) {
+    const to = new Date(dateTo);
+    filtered = filtered.filter(m => new Date(m.timestamp) <= to);
+  }
+
+  if (sortBy) {
+    filtered.sort((a, b) => {
+      const aVal = a[sortBy];
+      const bVal = b[sortBy];
+      if (order === 'desc') return aVal < bVal ? 1 : -1;
+      return aVal > bVal ? 1 : -1;
+    });
+  }
+
+  const total = filtered.length;
+  const paginated = filtered.slice((page - 1) * limit, page * limit);
+
+  return {
+    total,
+    page: Number(page),
+    limit: Number(limit),
+    data: paginated
+  };
+}
+
+// --- Single message sending ---
 exports.sendSingleMessage = async (req, res) => {
   const messages = Array.isArray(req.body) ? req.body : [req.body];
   const results = [];
@@ -60,6 +111,7 @@ exports.sendSingleMessage = async (req, res) => {
   res.status(207).json(results);
 };
 
+// --- Bulk message sending ---
 exports.sendBulkMessages = async (req, res) => {
   const {
     to,
@@ -83,27 +135,31 @@ exports.sendBulkMessages = async (req, res) => {
   res.status(207).json(summary);
 };
 
-exports.fetchAllMessages = async (_req, res) => {
+// --- All single messages (GET /api/messages) ---
+exports.fetchAllMessages = async (req, res) => {
   try {
     const messages = await getAllMessages();
-    res.json(messages);
+    const result = filterPaginateSort(messages, req.query);
+    res.json(result);
   } catch (error) {
     console.error('[GET:/api/messages] Error:', error);
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 };
 
-exports.fetchBulkMessages = async (_req, res) => {
+// --- All bulk messages (GET /api/messages/bulk) ---
+exports.fetchBulkMessages = async (req, res) => {
   try {
     const bulk = await getBulkMessages();
-    res.json(bulk);
+    const result = filterPaginateSort(bulk, req.query);
+    res.json(result);
   } catch (error) {
     console.error('[GET:/api/messages/bulk] Error:', error);
     res.status(500).json({ error: 'Failed to fetch bulk messages' });
   }
 };
 
-// GET /api/messages/:id
+// --- Single message by ID ---
 exports.getSingleMessageById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -121,7 +177,7 @@ exports.getSingleMessageById = async (req, res) => {
   }
 };
 
-// GET /api/messages/bulk/:bulkId
+// --- Bulk message summary by ID ---
 exports.getBulkMessageById = async (req, res) => {
   try {
     const { bulkId } = req.params;
@@ -139,18 +195,19 @@ exports.getBulkMessageById = async (req, res) => {
   }
 };
 
-// GET /api/messages/bulk/:bulkId/messages
+// --- Messages under a specific bulk ID ---
 exports.getMessagesByBulkId = async (req, res) => {
   try {
     const { bulkId } = req.params;
-    const messages = await getAllMessages();
-    const filtered = messages.filter(m => m.internalMessageId === bulkId);
+    const allMessages = await getAllMessages();
+    const matching = allMessages.filter(m => m.internalMessageId === bulkId);
 
-    if (!filtered.length) {
+    if (!matching.length) {
       return res.status(404).json({ error: 'No messages found for this bulkId' });
     }
 
-    res.json(filtered);
+    const result = filterPaginateSort(matching, req.query);
+    res.json(result);
   } catch (error) {
     console.error('[GET:/api/messages/bulk/:bulkId/messages] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
